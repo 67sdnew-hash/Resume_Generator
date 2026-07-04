@@ -57,22 +57,21 @@ router.get("/api/generate-pdf/:generationId", async (req: Request, res: Response
       return res.status(404).json({ error: "Generation not found" });
     }
 
-    const rawOutput = generation.output;
-    const parsedOutput = typeof rawOutput === "string" ? JSON.parse(rawOutput) : rawOutput;
+    // FIX: Parse the text strings from SQLite back into objects/arrays
+    const parsedOutput = JSON.parse(generation.output as string);
     const output = GenerationOutputSchema.parse(parsedOutput);
-
-    const contactRaw = generation.profile.contact as unknown as any;
-    const contact = typeof contactRaw === "string" ? JSON.parse(contactRaw) : contactRaw;
-    const experienceRaw = generation.profile.experience as unknown as any;
-    const experience = typeof experienceRaw === "string" ? JSON.parse(experienceRaw) : experienceRaw;
-    const educationRaw = generation.profile.education as unknown as any;
-    const education = typeof educationRaw === "string" ? JSON.parse(educationRaw) : educationRaw;
+    
+    const contact = JSON.parse(generation.profile.contact as string) as ContactInfo;
+    const experience = JSON.parse(generation.profile.experience as string) as ExperienceEntry[];
+    const education = JSON.parse(generation.profile.education as string) as EducationEntry[];
 
     const doc = new PDFDocument({ margin: 50, size: "A4" });
 
     res.setHeader("Content-Type", "application/pdf");
-    const fileNameBase = (contact?.fullName || "profile").toString().replace(/\s+/g, "_");
-    res.setHeader("Content-Disposition", `attachment; filename="${docType}-${fileNameBase}.pdf"`);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${docType}-${contact.fullName.replace(/\s+/g, "_")}.pdf"`
+    );
     doc.pipe(res);
 
     if (docType === "cover_letter") {
@@ -93,39 +92,21 @@ router.get("/api/generate-pdf/:generationId", async (req: Request, res: Response
 function renderResume(
   doc: PDFKit.PDFDocument,
   contact: ContactInfo,
-  output: { summary: string; optimizedExperience: { id: string; optimizedBullets: string[] }[]; prioritizedSkills: { technical?: string[]; soft?: string[] } },
+  output: { summary: string; optimizedExperience: { id: string; company?: string; optimizedBullets: string[] }[]; prioritizedSkills?: { technical?: string[]; soft?: string[] } },
   experience: ExperienceEntry[],
   education: EducationEntry[]
 ) {
   // --- Header ---
   doc.font("Helvetica-Bold").fontSize(22).text(contact.fullName);
   doc.font("Helvetica").fontSize(10).fillColor("#444");
-
   const contactLine = [contact.email, contact.phone, contact.location]
     .filter(Boolean)
     .join("  |  ");
   doc.text(contactLine);
-
-  const linkItems: { label: string; url: string }[] = [];
-  if (contact.linkedin) linkItems.push({ label: "LinkedIn", url: contact.linkedin });
-  if (contact.portfolio) linkItems.push({ label: "Portfolio", url: contact.portfolio });
-  if (contact.github) linkItems.push({ label: "GitHub", url: contact.github });
-
-  if (linkItems.length) {
-    const startX = doc.x;
-    let currentX = startX;
-    const gap = 10;
-    doc.moveDown(0.5);
-    doc.font("Helvetica").fontSize(10).fillColor("#1a73e8");
-
-    for (const item of linkItems) {
-      const textWidth = doc.widthOfString(item.label);
-      doc.text(item.label, currentX === startX ? undefined : currentX, undefined, { continued: true, link: item.url, underline: true });
-      currentX += textWidth + gap;
-    }
-    doc.text("", { continued: false });
-  }
-
+  const linksLine = [contact.linkedin, contact.portfolio, contact.github]
+    .filter(Boolean)
+    .join("  |  ");
+  if (linksLine) doc.text(linksLine);
   doc.moveDown(1);
   doc.fillColor("#000");
 
