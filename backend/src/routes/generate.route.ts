@@ -65,7 +65,7 @@ You MUST output ONLY a valid JSON object with exactly this structure:
 
     // 4. Call Gemini 1.5 Pro using JSON mode
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-pro",
+      model: "gemini-2.5-flash",
       systemInstruction: SYSTEM_PROMPT,
       generationConfig: {
         responseMimeType: "application/json", // This forces Gemini to output clean JSON
