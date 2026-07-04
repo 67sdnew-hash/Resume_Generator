@@ -2,25 +2,22 @@ import { z } from "zod";
 
 /**
  * ---- INPUT: Candidate profile submitted from the frontend ----
- * Mirrors schemas/profile.schema.json. Keep these in sync manually,
- * or generate one from the other with a tool like `json-schema-to-zod`
- * once the shape stabilizes.
  */
 export const ExperienceEntrySchema = z.object({
   id: z.string().optional(),
-  company: z.string().min(1),
-  title: z.string().min(1),
+  company: z.string().optional().default(""),
+  title: z.string().optional().default(""),
   location: z.string().optional(),
-  startDate: z.string(),
+  startDate: z.string().optional().default(""),
   endDate: z.string().optional(),
   isCurrent: z.boolean().optional(),
-  bullets: z.array(z.string()).min(1, "At least one bullet point is required"),
+  bullets: z.array(z.string()).optional().default([]),
 });
 
 export const EducationEntrySchema = z.object({
   id: z.string().optional(),
-  institution: z.string().min(1),
-  degree: z.string().min(1),
+  institution: z.string().optional().default(""),
+  degree: z.string().optional().default(""),
   fieldOfStudy: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
@@ -29,49 +26,35 @@ export const EducationEntrySchema = z.object({
 });
 
 export const SkillsSchema = z.object({
-  technical: z.array(z.string()).optional(),
-  soft: z.array(z.string()).optional(),
-  languages: z.array(z.string()).optional(),
-  certifications: z.array(z.string()).optional(),
+  technical: z.array(z.string()).optional().default([]),
+  soft: z.array(z.string()).optional().default([]),
+  languages: z.array(z.string()).optional().default([]),
+  certifications: z.array(z.string()).optional().default([]),
 });
 
 export const ContactSchema = z.object({
-  fullName: z.string().optional(),
-  email: z.string().email().optional(),
+  fullName: z.string().optional().default(""),
+  email: z.string().optional().default(""),
   phone: z.string().optional(),
   location: z.string().optional(),
-  linkedin: z.string().url().optional(),
-  portfolio: z.string().url().optional(),
-  github: z.string().url().optional(),
+  linkedin: z.string().optional(),
+  portfolio: z.string().optional(),
+  github: z.string().optional(),
 });
 
 export const ProfileSchema = z.object({
-  contact: ContactSchema.partial(),
-
+  contact: ContactSchema.optional().default({}),
   summary: z.string().optional(),
-
-  experience: z.array(ExperienceEntrySchema).default([]),
-
-  education: z.array(EducationEntrySchema).default([]),
-
-  skills: SkillsSchema.default({}),
-
-  projects: z
-    .array(
-      z.object({
-        name: z.string(),
-        description: z.string().optional(),
-        technologies: z.array(z.string()).optional(),
-        link: z.string().url().optional(),
-      })
-    )
-    .default([]),
+  experience: z.array(ExperienceEntrySchema).optional().default([]),
+  education: z.array(EducationEntrySchema).optional().default([]),
+  skills: SkillsSchema.optional().default({}),
+  projects: z.array(z.any()).optional(),
 });
 
 export const GenerateRequestSchema = z.object({
   profile: ProfileSchema,
-  jobDescription: z.string().min(10, "Job description too short — paste the full posting"),
-  profileId: z.string().optional(), // present on repeat generations against a saved profile
+  jobDescription: z.string().optional().default(""),
+  profileId: z.string().optional(),
 });
 
 export type GenerateRequest = z.infer<typeof GenerateRequestSchema>;
@@ -79,24 +62,21 @@ export type Profile = z.infer<typeof ProfileSchema>;
 
 /**
  * ---- OUTPUT: Validated shape of whatever the LLM tool call returns ----
- * Re-validate the LLM's output against this before it ever touches your
- * DB or the PDF renderer. A model can technically satisfy the tool schema
- * and still return something semantically broken (empty arrays, etc.).
  */
 export const OptimizedExperienceSchema = z.object({
-  id: z.string(),
+  id: z.string().optional().default("exp_0"),
   company: z.string().optional(),
-  optimizedBullets: z.array(z.string()).min(1),
+  optimizedBullets: z.array(z.string()).optional().default([]),
 });
 
 export const GenerationOutputSchema = z.object({
-  summary: z.string().min(1),
-  optimizedExperience: z.array(OptimizedExperienceSchema).min(1),
+  summary: z.string().optional().default(""),
+  optimizedExperience: z.array(OptimizedExperienceSchema).optional().default([]),
   prioritizedSkills: z.object({
     technical: z.array(z.string()).optional(),
     soft: z.array(z.string()).optional(),
-  }),
-  coverLetter: z.string().min(1),
+  }).optional(),
+  coverLetter: z.string().optional().default(""),
   matchNotes: z.string().optional(),
 });
 

@@ -84,11 +84,15 @@ You MUST output ONLY a valid JSON object with exactly this structure:
   }
     // Parse the JSON returned by Gemini
     const rawJson = JSON.parse(responseText);
+    
+    // DEBUG: Log the raw Gemini response
+    console.log("Raw Gemini response:", JSON.stringify(rawJson, null, 2));
 
     // 5. Validate the output against your existing schema
     const validation = GenerationOutputSchema.safeParse(rawJson);
     if (!validation.success) {
       console.error("LLM output failed validation:", validation.error.flatten());
+      console.error("Full raw JSON that failed:", JSON.stringify(rawJson, null, 2));
       return res.status(502).json({
         error: "LLM returned malformed output",
         details: validation.error.flatten(),
