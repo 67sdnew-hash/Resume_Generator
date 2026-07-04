@@ -1,13 +1,17 @@
 import { Router, Request, Response } from "express";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GenerateRequestSchema, GenerationOutputSchema } from "../lib/schemas";
-import { loadSystemPrompt } from "../lib/anthropic-tools"; // Keeping this to load your existing prompt text
+import fs from "fs";
+import path from "path"; // Keeping this to load your existing prompt text
 import { prisma } from "../lib/prisma";
 
 const router = Router();
 // Initialize Gemini with the key from your .env file
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const SYSTEM_PROMPT = loadSystemPrompt();
+const SYSTEM_PROMPT = fs.readFileSync(
+  path.join(process.cwd(), "prompts", "system-prompt.md"),
+  "utf8"
+);
 
 const LOCAL_USER_EMAIL = "local@dev.local";
 
@@ -71,13 +75,13 @@ You MUST output ONLY a valid JSON object with exactly this structure:
 
     const result = await model.generateContent(userMessage);
 
-    const responseText = result.response!.text();
+  const responseText = result.response!.text();
 
-    if (!responseText) {
-      return res.status(502).json({
-        error: "LLM returned an empty response",
-      });
-    }
+  if (!responseText) {
+    return res.status(502).json({
+      error: "LLM returned an empty response",
+    });
+  }
     // Parse the JSON returned by Gemini
     const rawJson = JSON.parse(responseText);
 
