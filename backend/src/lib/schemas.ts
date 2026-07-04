@@ -36,8 +36,8 @@ export const SkillsSchema = z.object({
 });
 
 export const ContactSchema = z.object({
-  fullName: z.string().min(1),
-  email: z.string().email(),
+  fullName: z.string().optional(),
+  email: z.string().email().optional(),
   phone: z.string().optional(),
   location: z.string().optional(),
   linkedin: z.string().url().optional(),
@@ -46,11 +46,16 @@ export const ContactSchema = z.object({
 });
 
 export const ProfileSchema = z.object({
-  contact: ContactSchema,
+  contact: ContactSchema.partial(),
+
   summary: z.string().optional(),
-  experience: z.array(ExperienceEntrySchema).min(1),
-  education: z.array(EducationEntrySchema),
-  skills: SkillsSchema,
+
+  experience: z.array(ExperienceEntrySchema).default([]),
+
+  education: z.array(EducationEntrySchema).default([]),
+
+  skills: SkillsSchema.default({}),
+
   projects: z
     .array(
       z.object({
@@ -60,12 +65,12 @@ export const ProfileSchema = z.object({
         link: z.string().url().optional(),
       })
     )
-    .optional(),
+    .default([]),
 });
 
 export const GenerateRequestSchema = z.object({
   profile: ProfileSchema,
-  jobDescription: z.string().min(50, "Job description too short — paste the full posting"),
+  jobDescription: z.string().min(10, "Job description too short — paste the full posting"),
   profileId: z.string().optional(), // present on repeat generations against a saved profile
 });
 
