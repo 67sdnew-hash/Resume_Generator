@@ -9,10 +9,11 @@
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "test:pdf": "node ./scripts/test-pdf.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.32.0",
+    "@google/genai": "^2.10.0",
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^5.20.0",
     "cors": "^2.8.5",

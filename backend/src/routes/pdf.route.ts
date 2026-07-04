@@ -57,18 +57,22 @@ router.get("/api/generate-pdf/:generationId", async (req: Request, res: Response
       return res.status(404).json({ error: "Generation not found" });
     }
 
-    const output = GenerationOutputSchema.parse(generation.output);
-    const contact = generation.profile.contact as unknown as ContactInfo;
-    const experience = generation.profile.experience as unknown as ExperienceEntry[];
-    const education = generation.profile.education as unknown as EducationEntry[];
+    const rawOutput = generation.output;
+    const parsedOutput = typeof rawOutput === "string" ? JSON.parse(rawOutput) : rawOutput;
+    const output = GenerationOutputSchema.parse(parsedOutput);
+
+    const contactRaw = generation.profile.contact as unknown as any;
+    const contact = typeof contactRaw === "string" ? JSON.parse(contactRaw) : contactRaw;
+    const experienceRaw = generation.profile.experience as unknown as any;
+    const experience = typeof experienceRaw === "string" ? JSON.parse(experienceRaw) : experienceRaw;
+    const educationRaw = generation.profile.education as unknown as any;
+    const education = typeof educationRaw === "string" ? JSON.parse(educationRaw) : educationRaw;
 
     const doc = new PDFDocument({ margin: 50, size: "A4" });
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${docType}-${contact.fullName.replace(/\s+/g, "_")}.pdf"`
-    );
+    const fileNameBase = (contact?.fullName || "profile").toString().replace(/\s+/g, "_");
+    res.setHeader("Content-Disposition", `attachment; filename="${docType}-${fileNameBase}.pdf"`);
     doc.pipe(res);
 
     if (docType === "cover_letter") {
@@ -96,14 +100,32 @@ function renderResume(
   // --- Header ---
   doc.font("Helvetica-Bold").fontSize(22).text(contact.fullName);
   doc.font("Helvetica").fontSize(10).fillColor("#444");
+
   const contactLine = [contact.email, contact.phone, contact.location]
     .filter(Boolean)
     .join("  |  ");
   doc.text(contactLine);
-  const linksLine = [contact.linkedin, contact.portfolio, contact.github]
-    .filter(Boolean)
-    .join("  |  ");
-  if (linksLine) doc.text(linksLine);
+
+  const linkItems: { label: string; url: string }[] = [];
+  if (contact.linkedin) linkItems.push({ label: "LinkedIn", url: contact.linkedin });
+  if (contact.portfolio) linkItems.push({ label: "Portfolio", url: contact.portfolio });
+  if (contact.github) linkItems.push({ label: "GitHub", url: contact.github });
+
+  if (linkItems.length) {
+    const startX = doc.x;
+    let currentX = startX;
+    const gap = 10;
+    doc.moveDown(0.5);
+    doc.font("Helvetica").fontSize(10).fillColor("#1a73e8");
+
+    for (const item of linkItems) {
+      const textWidth = doc.widthOfString(item.label);
+      doc.text(item.label, currentX === startX ? undefined : currentX, undefined, { continued: true, link: item.url, underline: true });
+      currentX += textWidth + gap;
+    }
+    doc.text("", { continued: false });
+  }
+
   doc.moveDown(1);
   doc.fillColor("#000");
 

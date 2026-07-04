@@ -1,6 +1,6 @@
 export interface ContactInfo {
-  fullName: string;
-  email: string;
+  fullName?: string;
+  email?: string;
   phone?: string;
   location?: string;
   linkedin?: string;
@@ -59,14 +59,30 @@ export interface GenerateResponse {
   profileId: string;
   generationId: string;
   data: GenerationOutput;
+  cannedFallback?: boolean;
 }
 
 export const emptyProfile: Profile = {
-  contact: { fullName: "", email: "", phone: "", location: "", linkedin: "" },
+  contact: {
+    fullName: "",
+    email: "",
+    phone: "",
+    location: "",
+    linkedin: "",
+    portfolio: "",
+    github: "",
+  },
+
   summary: "",
-  experience: [
-    { company: "", title: "", location: "", startDate: "", endDate: "", bullets: [""] },
-  ],
-  education: [{ institution: "", degree: "", fieldOfStudy: "", startDate: "", endDate: "" }],
-  skills: { technical: [], soft: [], languages: [], certifications: [] },
+
+  experience: [],
+
+  education: [],
+
+  skills: {
+    technical: [],
+    soft: [],
+    languages: [],
+    certifications: [],
+  },
 };
