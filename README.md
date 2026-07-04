@@ -1,133 +1,196 @@
-# AI Resume & Cover Letter Generator — Local Full-Stack App
+# Resume Generator
 
-A complete, runnable local app: multi-step profile form → paste a job description →
-Claude tailors your bullet points and writes a cover letter → preview → download PDFs.
+Resume Generator is a full-stack application that helps users create tailored resumes and cover letters from their profile data and a target job description. The experience is designed to feel simple and polished: fill in your details, paste a job posting, generate AI-optimized content, preview the result, and download a PDF.
 
+## What it does
+
+The app combines a modern Next.js frontend with an Express + TypeScript backend to provide:
+
+- A guided multi-step profile form for contact, experience, education, and skills
+- AI-assisted resume optimization based on a supplied job description
+- A generated cover letter that stays grounded in the candidate’s supplied experience
+- Local persistence with Prisma and SQLite
+- PDF generation for both the resume and cover letter
+
+## Tech stack
+
+### Frontend
+
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- Lucide icons
+
+### Backend
+
+- Express.js
+- TypeScript
+- Prisma ORM
+- SQLite
+- PDFKit
+- Zod validation
+- Google Gemini API
+
+## Project structure
+
+```text
+Resume_Generator/
+├── backend/
+│   ├── prisma/
+│   ├── prompts/
+│   ├── scripts/
+│   └── src/
+│       ├── lib/
+│       ├── routes/
+│       └── server.ts
+├── frontend/
+│   ├── app/
+│   ├── components/
+│   ├── lib/
+│   └── __tests__
+└── README.md
 ```
-app/
-├── backend/     Express + TypeScript API, SQLite (via Prisma), Anthropic Claude
-└── frontend/    Next.js 14 (App Router) + Tailwind, plain React state (no extra form libs)
-```
 
-**Important:** this was built and syntax-checked in a sandboxed environment with no
-internet access, so `npm install` could not be run or verified end-to-end here. The
-code is complete and has been checked with `tsc --noEmit` for real syntax/type
-errors — run the two commands below on your own machine to bring it up.
+## Detailed architecture
 
----
+### Backend
 
-## 1. Prerequisites
+- `backend/src/server.ts`: configures Express, loads `.env`, enables CORS, parses JSON, and exposes routes.
+- `backend/src/routes/generate.route.ts`: validates incoming profile/job-description payloads, builds a Gemini prompt, calls the Google Gemini API, validates the returned JSON, persists the profile and generation to the database, and returns the generated content.
+- `backend/src/routes/pdf.route.ts`: loads a saved generation and profile, renders either a resume or cover letter with PDFKit, and streams the PDF directly to the browser.
+- `backend/src/routes/profile.route.ts`: provides profile retrieval and generation history endpoints so the frontend can reload existing profiles and view prior outputs.
+- `backend/src/lib/schemas.ts`: defines request shapes with Zod and validates both the incoming payload and the AI-generated output.
+- `backend/src/lib/prisma.ts`: creates a shared Prisma client instance and avoids duplicate clients during development hot reload.
+
+### AI generation flow
+
+- The backend sends a job-specific prompt to Gemini with a strict schema requirement.
+- If `GEMINI_API_KEY` is missing in development, the server falls back to a canned response.
+- In production, a missing key or a quota error returns a 502 response.
+- The generated output is validated before being saved, ensuring the app only stores well-formed JSON.
+
+### Persistence
+
+- Uses Prisma ORM backed by SQLite.
+- Database file: `backend/dev.db` configured via `backend/.env`.
+- Profiles and generations are stored separately so the app can retain profile data and multiple tailored versions for the same candidate.
+
+### PDF generation
+
+- Generated PDF content is not stored on disk.
+- The backend renders resumes and cover letters on demand from stored generation JSON.
+- This keeps the app lightweight and avoids unnecessary file persistence.
+
+### Frontend
+
+- `frontend/components/ProfileForm.tsx`: collects contact, experience, education, and skills in a polished multi-step form.
+- `frontend/lib/api.ts`: sanitizes profile content, trims empty fields, and posts the request to the backend.
+- `frontend/lib/types.ts`: shares the same profile and generation shape with strong typing.
+- The frontend is designed as a local demo experience that can be extended later for authentication and multi-user support.
+
+## Prerequisites
+
+Before running the app, make sure you have:
 
 - Node.js 18+ and npm
-- An Anthropic API key ([console.anthropic.com](https://console.anthropic.com))
+- A Google Gemini API key
 
-No database server needed — the backend uses SQLite (a local file), created automatically.
+## Environment setup
 
----
+### Backend
 
-## 2. Backend setup
+Create a file named .env inside the backend folder with the following values:
+
+```env
+DATABASE_URL="file:./dev.db"
+GEMINI_API_KEY=your_gemini_api_key_here
+FRONTEND_URL=http://localhost:3000
+PORT=4000
+NODE_ENV=development
+```
+
+If a Gemini key is not provided, the backend will fall back to a canned local response for development testing.
+
+### Frontend
+
+The frontend uses the backend URL from the default value:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
+```
+
+You can optionally create a frontend .env.local file if you want to override it.
+
+## Getting started
+
+### 1. Install backend dependencies
 
 ```bash
 cd backend
-cp .env.example .env
-```
-
-Open `.env` and paste in your real key:
-```
-ANTHROPIC_API_KEY=sk-ant-...
-```
-
-Then:
-```bash
 npm install
-npm run prisma:generate
-npm run prisma:migrate
+npx prisma generate
+npx prisma migrate dev --name init
 npm run dev
 ```
 
-You should see:
-```
-API listening on http://localhost:4000
+The backend will start on:
+
+```text
+http://localhost:4000
 ```
 
-The `prisma:migrate` step creates `backend/dev.db` (SQLite file) and the `User`,
-`Profile`, `Generation`, `Document` tables from `prisma/schema.prisma`.
+You can verify the server health check with:
 
-### Quick backend sanity check
 ```bash
 curl http://localhost:4000/health
-# {"status":"ok"}
 ```
 
----
+### 2. Install frontend dependencies
 
-## 3. Frontend setup
-
-Open a **second terminal**:
+Open a second terminal and run:
 
 ```bash
 cd frontend
-cp .env.local.example .env.local
 npm install
 npm run dev
 ```
 
-Visit **http://localhost:3000**.
+The frontend will be available at:
 
----
+```text
+http://localhost:3000
+```
 
-## 4. Using the app
+## How to use the app
 
-1. Fill in Contact → Experience → Education → Skills (4-step form).
-2. Paste a real job description (50+ characters).
-3. Click **Generate Tailored Resume** — this calls Claude via your backend, which:
-   - Rewrites your bullet points to match the job, without inventing facts
-   - Writes a tailored cover letter
-   - Saves your profile + this generation to SQLite
-4. Preview both documents inline.
-5. Click **Download Resume PDF** / **Download Cover Letter PDF** — these hit
-   `GET /api/generate-pdf/:generationId?type=resume|cover_letter`, which renders
-   the PDF on the fly with `pdfkit` and streams it back.
+1. Open the app in your browser.
+2. Complete the profile form with your contact, experience, education, and skills information.
+3. Paste a target job description.
+4. Click Generate Resume.
+5. Review the optimized experience, prioritized skills, and generated cover letter.
+6. Download the resume or cover letter as a PDF.
 
----
+## API overview
 
-## 5. What's wired up vs. what's stubbed
+The backend exposes a few key endpoints:
 
-| Feature | Status |
-|---|---|
-| Multi-step profile form | Built (plain React state, Tailwind) |
-| Job description input + validation | Built |
-| Claude structured-output generation | Built (`POST /api/generate`) |
-| Zod validation on request AND on the LLM's own output | Built |
-| SQLite persistence (Profile + Generation) | Built |
-| PDF generation (resume + cover letter) | Built (`GET /api/generate-pdf/:id`) |
-| Resume preview in-browser | Built |
-| Authentication / multi-user accounts | Not built — this is a single-user local app (see `LOCAL_USER_EMAIL` in `generate.route.ts`) |
-| Choice of visual resume templates | Not built — one clean layout for now |
-| Editing AI output before download | Not built — currently preview-only, regenerate to change wording |
-| Cloud file storage (S3/R2) | Not needed yet — PDFs are generated on-demand, not stored |
+- POST /api/generate — generates optimized resume content and a cover letter
+- GET /api/generate-pdf/:generationId — downloads a generated PDF
+- GET /api/profile/:id — fetches a saved profile
+- GET /api/generations/:profileId — lists saved generations for a profile
 
----
+## Notes
 
-## 6. Common issues
+- The app currently uses a local single-user workflow with SQLite, which makes it ideal for local development and demos.
+- PDF files are generated on demand rather than stored in cloud storage.
+- The current version is focused on a clean local experience rather than multi-user authentication or advanced resume templates.
 
-- **"Invalid `x-api-key`" from Anthropic** → check `.env` has the correct key and no
-  trailing quotes/spaces, and that you restarted `npm run dev` after editing it.
-- **CORS error in browser console** → confirm backend `.env` `FRONTEND_URL` matches
-  the URL you're actually loading the frontend from (default `http://localhost:3000`).
-- **Prisma migrate fails** → delete `backend/dev.db` and `backend/prisma/migrations`
-  and re-run `npm run prisma:migrate`.
-- **Port already in use** → change `PORT` in backend `.env` or stop whatever else is
-  on 4000/3000.
+## Future improvements
 
----
+Possible next steps for the project include:
 
-## 7. Suggested next steps
-
-- Add Clerk or Auth.js so `Profile` rows are scoped per real user instead of the
-  single local placeholder user
-- Add a template picker (2-3 `pdfkit` layouts, or migrate to `@react-pdf/renderer`
-  for richer typography/columns)
-- Let users edit the AI-generated bullets/cover letter inline before downloading
-- Add a "My Generations" history view using the already-built
-  `GET /api/generations/:profileId` endpoint
+- Adding authentication and multi-user support
+- Supporting multiple resume templates
+- Allowing inline editing of generated content before export
+- Adding richer history and saved generation management
